@@ -1,9 +1,6 @@
 # Imitation Learning for 250$ robot arm
 This repository contains a re-adapatation of [Action Chunking Transformer](https://github.com/tonyzhaozh/act/tree/main) that works for this [low-cost robot](https://github.com/AlexanderKoch-Koch/low_cost_robot) design (250$). 
 
-We are sharing the repo so anyone (non-experts included) can train a robot policy after a few teleoperated demonstraions.
-
-The sorting task in the video was trained with less than 30 demonstrations on an RTX 3080 and took less than 30min.
 
 https://github.com/Shaka-Labs/ACT/assets/45405956/83c05915-7442-49a4-905a-273fe35e84ee
 
@@ -51,3 +48,5 @@ Make sure to keep the same setup while you were collecting the data. To evaluate
 ~~~
 python evaluate.py --task sort
 ~~~
+# ACT_lcb
+This is a repository modified from the Shaka_lab project

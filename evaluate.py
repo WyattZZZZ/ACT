@@ -17,6 +17,7 @@ parser.add_argument('--task', type=str, default='task1')
 args = parser.parse_args()
 task = args.task
 
+
 # config
 cfg = TASK_CONFIG
 policy_config = POLICY_CONFIG
@@ -41,15 +42,19 @@ def capture_image(cam):
 
 if __name__ == "__main__":
     # init camera
-    cam = cv2.VideoCapture(cfg['camera_port'])
+    cam_ls = []
+    for port in cfg['camera_port']:
+        cam = cv2.VideoCapture(port)
+        if not cam.isOpened():
+            raise IOError("Cannot open camera")
+        cam_ls.append(cam)
     # Check if the camera opened successfully
-    if not cam.isOpened():
-        raise IOError("Cannot open camera")
+
     # init follower
     follower = Robot(device_name=ROBOT_PORTS['follower'])
 
     # load the policy
-    ckpt_path = os.path.join(train_cfg['checkpoint_dir'], train_cfg['eval_ckpt_name'])
+    ckpt_path = os.path.join(train_cfg['checkpoint_dir'] + task, train_cfg['eval_ckpt_name'])
     policy = make_policy(policy_config['policy_class'], policy_config)
     loading_status = policy.load_state_dict(torch.load(ckpt_path, map_location=torch.device(device)))
     print(loading_status)
@@ -57,7 +62,7 @@ if __name__ == "__main__":
     policy.eval()
 
     print(f'Loaded: {ckpt_path}')
-    stats_path = os.path.join(train_cfg['checkpoint_dir'], f'dataset_stats.pkl')
+    stats_path = os.path.join(train_cfg['checkpoint_dir'] + task, f'dataset_stats.pkl')
     with open(stats_path, 'rb') as f:
         stats = pickle.load(f)
 
@@ -72,17 +77,23 @@ if __name__ == "__main__":
     # bring the follower to the leader
     for i in range(90):
         follower.read_position()
-        _ = capture_image(cam)
+        image_ls = []
+        for cam in cam_ls:
+            image_ls.append(capture_image(cam))
+        dic = {}
+        for i in range(len(image_ls)):
+            dic.update({cfg['camera_names'][i]: image_ls[i]})
     
     obs = {
         'qpos': pwm2pos(follower.read_position()),
         'qvel': vel2pwm(follower.read_velocity()),
-        'images': {cn: capture_image(cam) for cn in cfg['camera_names']}
+        'images': dic
     }
     os.system('say "start"')
 
     n_rollouts = 1
     for i in range(n_rollouts):
+        count = 0
         ### evaluation loop
         if policy_config['temporal_agg']:
             all_time_actions = torch.zeros([cfg['episode_len'], cfg['episode_len']+num_queries, cfg['state_dim']]).to(device)
@@ -117,8 +128,11 @@ if __name__ == "__main__":
                 raw_action = raw_action.squeeze(0).cpu().numpy()
                 action = post_process(raw_action)
                 action = pos2pwm(action).astype(int)
+                count += 1
                 ### take action
-                follower.set_goal_pos(action)
+                if count == 3:
+                    count = 0
+                    follower.set_goal_pos(action)
 
                 ### update obs
                 obs = {
@@ -161,7 +175,7 @@ if __name__ == "__main__":
         dataset_path = os.path.join(data_dir, f'episode_{idx}')
         # save the data
         with h5py.File("data/demo/trained.hdf5", 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
-            root.attrs['sim'] = True
+            root.attrs['sim'] = False
             obs = root.create_group('observations')
             image = obs.create_group('images')
             for cam_name in cfg['camera_names']:

@@ -12,7 +12,7 @@ class MotorControlType(Enum):
     UNKNOWN = auto()
 
 class Robot:
-    def __init__(self, device_name: str, baudrate=1_000_000, servo_ids=[1, 2, 3, 4, 5]) -> None:
+    def __init__(self, device_name: str, baudrate=1_000_000, servo_ids=[1, 2, 3, 4, 6, 7]) -> None:
         self.servo_ids = servo_ids
         self.dynamixel = Dynamixel.Config(baudrate=baudrate, device_name=device_name).instantiate()
         self._init_motors()

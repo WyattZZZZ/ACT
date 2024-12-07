@@ -1,3 +1,5 @@
+from matplotlib import pyplot as plt
+
 from config.config import TASK_CONFIG, ROBOT_PORTS
 import os
 import cv2
@@ -37,11 +39,14 @@ def capture_image(cam):
 
 
 if __name__ == "__main__":
-    # init camera
-    cam = cv2.VideoCapture(cfg['camera_port'])
+    cam_ls = []
+    # init
+    for port in cfg['camera_port']:
+        cam = cv2.VideoCapture(port)
+        if not cam.isOpened():
+            raise IOError("Cannot open camera")
+        cam_ls.append(cam)
     # Check if the camera opened successfully
-    if not cam.isOpened():
-        raise IOError("Cannot open camera")
     # init follower
     follower = Robot(device_name=ROBOT_PORTS['follower'])
     # init leader
@@ -51,22 +56,28 @@ if __name__ == "__main__":
     
     for i in range(num_episodes):
         # bring the follower to the leader and start camera
-        for i in range(200):
+        for i in range(50):
             follower.set_goal_pos(leader.read_position())
-            _ = capture_image(cam)
+            for cam in cam_ls:
+                _ = capture_image(cam)
         os.system('say "go"')
         # init buffers
         obs_replay = []
         action_replay = []
         for i in tqdm(range(cfg['episode_len'])):
             # observation
-            qpos = follower.read_position()
-            qvel = follower.read_velocity()
-            image = capture_image(cam)
+            qpos = leader.read_position()
+            qvel = leader.read_velocity()
+            image_ls = []
+            for cam in cam_ls:
+                image_ls.append(capture_image(cam))
+            dic = {}
+            for i in range(len(image_ls)):
+                dic.update({cfg['camera_names'][i]: image_ls[i]})
             obs = {
                 'qpos': pwm2pos(qpos),
                 'qvel': pwm2vel(qvel),
-                'images': {cn : image for cn in cfg['camera_names']}
+                'images': dic
             }
             # action (leader's position)
             action = leader.read_position()
@@ -112,7 +123,7 @@ if __name__ == "__main__":
         dataset_path = os.path.join(data_dir, f'episode_{idx}')
         # save the data
         with h5py.File(dataset_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
-            root.attrs['sim'] = True
+            root.attrs['sim'] = False
             obs = root.create_group('observations')
             image = obs.create_group('images')
             for cam_name in cfg['camera_names']:

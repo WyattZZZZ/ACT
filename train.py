@@ -123,6 +123,7 @@ if __name__ == '__main__':
     # load data
     train_dataloader, val_dataloader, stats, _ = load_data(data_dir, num_episodes, task_cfg['camera_names'],
                                                             train_cfg['batch_size_train'], train_cfg['batch_size_val'])
+    print()
     # save stats
     stats_path = os.path.join(checkpoint_dir, f'dataset_stats.pkl')
     with open(stats_path, 'wb') as f:

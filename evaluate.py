@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 from config.config import POLICY_CONFIG, TASK_CONFIG, TRAIN_CONFIG, ROBOT_PORTS # must import first
 
 import os
@@ -75,24 +77,26 @@ if __name__ == "__main__":
         num_queries = policy_config['num_queries']
 
     # bring the follower to the leader
-    for i in range(90):
+    for i in range(30):
         follower.read_position()
         image_ls = []
         for cam in cam_ls:
-            image_ls.append(capture_image(cam))
+            image = capture_image(cam)
+            image_ls.append(image)
         dic = {}
         for i in range(len(image_ls)):
             dic.update({cfg['camera_names'][i]: image_ls[i]})
     
     obs = {
         'qpos': pwm2pos(follower.read_position()),
-        'qvel': vel2pwm(follower.read_velocity()),
+        'qvel': pwm2vel(follower.read_velocity()),
         'images': dic
     }
     os.system('say "start"')
 
     n_rollouts = 1
     for i in range(n_rollouts):
+        print(1)
         count = 0
         ### evaluation loop
         if policy_config['temporal_agg']:
@@ -128,17 +132,20 @@ if __name__ == "__main__":
                 raw_action = raw_action.squeeze(0).cpu().numpy()
                 action = post_process(raw_action)
                 action = pos2pwm(action).astype(int)
-                count += 1
-                ### take action
-                if count == 3:
-                    count = 0
-                    follower.set_goal_pos(action)
+                follower.set_goal_pos(action)
 
                 ### update obs
+                image_ls = []
+                for cam in cam_ls:
+                    image = capture_image(cam)
+                    image_ls.append(image)
+                dic = {}
+                for i in range(len(image_ls)):
+                    dic.update({cfg['camera_names'][i]: image_ls[i]})
                 obs = {
                     'qpos': pwm2pos(follower.read_position()),
-                    'qvel': vel2pwm(follower.read_velocity()),
-                    'images': {cn: capture_image(cam) for cn in cfg['camera_names']}
+                    'qvel': pwm2vel(follower.read_velocity()),
+                    'images': dic
                 }
                 ### store data
                 obs_replay.append(obs)

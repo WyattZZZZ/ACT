@@ -82,6 +82,7 @@ if __name__ == "__main__":
             # action (leader's position)
             action = leader.read_position()
             # apply action
+            print(action)
             follower.set_goal_pos(action)
             action = pwm2pos(action)
             # store data
